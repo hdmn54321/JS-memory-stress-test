@@ -1,73 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Jetsam Kill Stress Test</title>
-  <style>
-    body{font-family:sans-serif;max-width:40rem;margin:0 auto;padding:2rem;line-height:1.6}
-    h1{font-size:2rem;margin-bottom:1rem}
-    button{padding:0.8rem 1.2rem;font-size:1rem;border:none;border-radius:0.4rem;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
-    #status{margin-top:1.2rem;font-weight:bold}
-  </style>
+<meta charset="UTF-8">
+<title>Memory Leak Stress Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: sans-serif; padding: 1rem; line-height: 1.5; }
+  input { width: 6rem; }
+  button { margin-left: .5rem; padding: .3rem .8rem; }
+  #status { margin-top: 1rem; font-weight: bold; }
+</style>
 </head>
 <body>
-  <h1>Jetsam Kill Stress Test</h1>
-  <p>This page deliberately allocates large blocks of memory in rapid succession to trigger <em>Jetsam</em> (the iOS low-memory watchdog). <strong>It will likely crash Safari on iOS / iPadOS if you let it run long enough.</strong></p>
+<h1>JavaScript Memory Stress Test</h1>
+<p>
+  This page intentionally allocates memory on a timer so you can observe how the browser behaves.<br>
+  Interval&nbsp;(ms): <input id="interval" type="number" value="50" min="1" step="10">
+  Chunk&nbsp;size&nbsp;(elements): <input id="chunk" type="number" value="1048576" step="1024"><br>
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+</p>
+<p id="status">Buckets: 0</p>
 
-  <button id="startBtn">Start Memory Hogging</button>
-  <button id="stopBtn" disabled>Stop</button>
-  <div id="status">Idle</div>
+<script>
+(() => {
+  let buckets = [];
+  let timer = null;
 
-  <script>
-    /*
-      Strategy:
-      - Allocate 10 MiB Uint8Arrays in a tight loop via requestAnimationFrame.
-      - Keep references in an array so they aren't garbage-collected.
-      - Update onscreen counter so you know roughly how much has been allocated.
-    */
-    const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MiB
-    let chunks = [];
-    let running = false;
-    let totalAllocated = 0;
+  const status = document.getElementById('status');
+  const btnStart = document.getElementById('start');
+  const btnStop = document.getElementById('stop');
+  const intervalInput = document.getElementById('interval');
+  const chunkInput = document.getElementById('chunk');
 
-    function formatMB(bytes){return (bytes / (1024*1024)).toFixed(1) + " MB";}
+  function updateStatus() {
+    const estMB = (buckets.length * chunkInput.value * 1) / 256; // rough estimate
+    status.textContent = `Buckets: ${buckets.length} (≈ ${estMB.toLocaleString(undefined,{maximumFractionDigits:0})} MB)`;
+  }
 
-    function hog() {
-      if (!running) return;
-      try {
-        chunks.push(new Uint8Array(CHUNK_SIZE));
-        totalAllocated += CHUNK_SIZE;
-        status.textContent = `Allocated ${formatMB(totalAllocated)}`;
-      } catch (e) {
-        status.textContent = "Allocation failed: " + e.message;
-        console.error(e);
-        running = false;
-        return;
-      }
-      // Keep the loop tight but yield to the browser to keep UI responsive
-      requestAnimationFrame(hog);
-    }
+  btnStart.addEventListener('click', () => {
+    const delay = parseInt(intervalInput.value, 10);
+    const chunk = parseInt(chunkInput.value, 10);
 
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const status = document.getElementById('status');
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+      buckets.push(new Array(chunk).fill('🧠'));
+      console.log('Buckets:', buckets.length);
+      updateStatus();
+    }, delay);
 
-    startBtn.addEventListener('click', () => {
-      if (running) return;
-      running = true;
-      status.textContent = 'Starting…';
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-      hog();
-    });
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+  });
 
-    stopBtn.addEventListener('click', () => {
-      running = false;
-      status.textContent = `Stopped after allocating ${formatMB(totalAllocated)}`;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    });
-  </script>
+  btnStop.addEventListener('click', () => {
+    clearInterval(timer);
+    timer = null;
+    buckets = [];
+    updateStatus();
+    btnStart.disabled = false;
+    btnStop.disabled = true;
+  });
+
+  updateStatus();
+})();
+</script>
 </body>
 </html>
