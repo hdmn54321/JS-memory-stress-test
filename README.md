@@ -1,1 +1,1 @@
-# jetsam-test
+# JavaScript Memory Stress Test
