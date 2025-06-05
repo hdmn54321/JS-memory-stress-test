@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Jetsam Kill Stress Test</title>
+  <style>
+    body{font-family:sans-serif;max-width:40rem;margin:0 auto;padding:2rem;line-height:1.6}
+    h1{font-size:2rem;margin-bottom:1rem}
+    button{padding:0.8rem 1.2rem;font-size:1rem;border:none;border-radius:0.4rem;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
+    #status{margin-top:1.2rem;font-weight:bold}
+  </style>
+</head>
+<body>
+  <h1>Jetsam Kill Stress Test</h1>
+  <p>This page deliberately allocates large blocks of memory in rapid succession to trigger <em>Jetsam</em> (the iOS low-memory watchdog). <strong>It will likely crash Safari on iOS / iPadOS if you let it run long enough.</strong></p>
+
+  <button id="startBtn">Start Memory Hogging</button>
+  <button id="stopBtn" disabled>Stop</button>
+  <div id="status">Idle</div>
+
+  <script>
+    /*
+      Strategy:
+      - Allocate 10 MiB Uint8Arrays in a tight loop via requestAnimationFrame.
+      - Keep references in an array so they aren't garbage-collected.
+      - Update onscreen counter so you know roughly how much has been allocated.
+    */
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MiB
+    let chunks = [];
+    let running = false;
+    let totalAllocated = 0;
+
+    function formatMB(bytes){return (bytes / (1024*1024)).toFixed(1) + " MB";}
+
+    function hog() {
+      if (!running) return;
+      try {
+        chunks.push(new Uint8Array(CHUNK_SIZE));
+        totalAllocated += CHUNK_SIZE;
+        status.textContent = `Allocated ${formatMB(totalAllocated)}`;
+      } catch (e) {
+        status.textContent = "Allocation failed: " + e.message;
+        console.error(e);
+        running = false;
+        return;
+      }
+      // Keep the loop tight but yield to the browser to keep UI responsive
+      requestAnimationFrame(hog);
+    }
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const status = document.getElementById('status');
+
+    startBtn.addEventListener('click', () => {
+      if (running) return;
+      running = true;
+      status.textContent = 'Starting…';
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      hog();
+    });
+
+    stopBtn.addEventListener('click', () => {
+      running = false;
+      status.textContent = `Stopped after allocating ${formatMB(totalAllocated)}`;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>
