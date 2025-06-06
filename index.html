@@ -1,98 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Memory Leak Test</title>
-  <style>
-    :root { font-family: system-ui, sans-serif; }
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.25rem;
-      height: 100vh;
-      margin: 0;
-      background: #fdfdfd;
-    }
-    h1 { font-size: 1.25rem; font-weight: 500; margin: 0; }
-    #status { font-size: 0.9rem; color: #333; }
-    button {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.9rem;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background: #fff;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    button:hover { background: #f0f0f0; }
-    #controls { display: flex; gap: 0.5rem; align-items: center; }
-    #speedDisplay { font-variant-numeric: tabular-nums; }
-  </style>
+<meta charset="UTF-8">
+<title>Memory Leak Stress Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: sans-serif; padding: 1rem; line-height: 1.5; }
+  input { width: 6rem; }
+  button { margin-left: .5rem; padding: .3rem .8rem; }
+  #status { margin-top: 1rem; font-weight: bold; }
+</style>
 </head>
 <body>
-  <h1>Memory Leak Test — open DevTools → Performance → Memory to observe growth</h1>
-  <div id="status">Waiting&hellip;</div>
-  <div id="controls">
-    <button id="slower">&minus; slower</button>
-    <span>Speed: <span id="speedDisplay"></span> MB/s</span>
-    <button id="faster">faster &plus;</button>
-  </div>
+<h1>JavaScript Memory Stress Test</h1>
+<p>
+  This page intentionally allocates memory on a timer so you can observe how the browser behaves.<br>
+  Interval&nbsp;(ms): <input id="interval" type="number" value="50" min="1" step="10">
+  Chunk&nbsp;size&nbsp;(elements): <input id="chunk" type="number" value="1048576" step="1024"><br>
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+</p>
+<p id="status">Buckets: 0</p>
 
-  <script>
-    // =====================================
-    // Aggressive Memory Leak Demo w/ Controls & Live Stats
-    // =====================================
-    (function () {
-      const MB = 1024 * 1024;
-      const CHUNK_MB = 1;            // size per allocation (MiB)
-      let intervalMs = 50;           // start at 50 ms → 20 MB/s
-      const bucket = [];             // never released → leak
-      let timerId;
+<script>
+(() => {
+  let buckets = [];
+  let timer = null;
 
-      function allocateChunk() {
-        bucket.push('x'.repeat(CHUNK_MB * MB));
-      }
+  const status = document.getElementById('status');
+  const btnStart = document.getElementById('start');
+  const btnStop = document.getElementById('stop');
+  const intervalInput = document.getElementById('interval');
+  const chunkInput = document.getElementById('chunk');
 
-      function startLeak() {
-        clearInterval(timerId);
-        timerId = setInterval(allocateChunk, intervalMs);
-      }
+  function updateStatus() {
+    const estMB = (buckets.length * chunkInput.value * 1) / 256; // rough estimate
+    status.textContent = `Buckets: ${buckets.length} (≈ ${estMB.toLocaleString(undefined,{maximumFractionDigits:0})} MB)`;
+  }
 
-      // --- UI helpers ---
-      const statusEl = document.getElementById('status');
-      const speedEl  = document.getElementById('speedDisplay');
+  btnStart.addEventListener('click', () => {
+    const delay = parseInt(intervalInput.value, 10);
+    const chunk = parseInt(chunkInput.value, 10);
 
-      function updateSpeedLabel() {
-        speedEl.textContent = (1000 / intervalMs * CHUNK_MB).toFixed(0);
-      }
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+      buckets.push(new Array(chunk).fill('🧠'));
+      console.log('Buckets:', buckets.length);
+      updateStatus();
+    }, delay);
 
-      // Update stats every second
-      setInterval(() => {
-        const leakMB = bucket.length * CHUNK_MB;
-        const heap = (performance.memory?.usedJSHeapSize || 0) / MB;
-        const heapLabel = performance.memory ? `${heap.toFixed(0)} MB` : 'n/a';
-        statusEl.textContent = `Chunks: ${bucket.length} (~${leakMB} MB) | JS Heap: ${heapLabel}`;
-      }, 1000);
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+  });
 
-      // --- Controls ---
-      document.getElementById('faster').addEventListener('click', () => {
-        intervalMs = Math.max(Math.floor(intervalMs / 2), 1); // halve until 1 ms
-        startLeak();
-        updateSpeedLabel();
-      });
+  btnStop.addEventListener('click', () => {
+    clearInterval(timer);
+    timer = null;
+    buckets = [];
+    updateStatus();
+    btnStart.disabled = false;
+    btnStop.disabled = true;
+  });
 
-      document.getElementById('slower').addEventListener('click', () => {
-        intervalMs = Math.min(intervalMs * 2, 10000); // double up to 10 s
-        startLeak();
-        updateSpeedLabel();
-      });
-
-      // Init
-      updateSpeedLabel();
-      startLeak();
-    })();
-  </script>
+  updateStatus();
+})();
+</script>
 </body>
 </html>
