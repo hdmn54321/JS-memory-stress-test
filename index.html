@@ -35,58 +35,56 @@
   <h1>Memory Leak Test — open DevTools → Performance → Memory to observe growth</h1>
   <div id="status">Waiting&hellip;</div>
   <div id="controls">
-    <button id="slower">&#8722; slower</button>
-    <span>Speed: <span id="speedDisplay"></span> MB/s</span>
-    <button id="faster">faster &#43;</button>
+    <button id="slower">&minus; slower</button>
+    <span>Speed: <span id="speedDisplay"></span> MB/s</span>
+    <button id="faster">faster &plus;</button>
   </div>
 
   <script>
-    // =============================
-    // Deliberate Memory Leak Demo with Controls & Live Stats
-    // =============================
+    // =====================================
+    // Aggressive Memory Leak Demo w/ Controls & Live Stats
+    // =====================================
     (function () {
       const MB = 1024 * 1024;
-      const CHUNK_MB = 1;               // size per allocation
-      let intervalMs = 100;             // default interval (ms)
-      const bucket = [];                // never released → leak
+      const CHUNK_MB = 1;            // size per allocation (MiB)
+      let intervalMs = 50;           // start at 50 ms → 20 MB/s
+      const bucket = [];             // never released → leak
       let timerId;
 
-      // Allocate one chunk and hold reference
       function allocateChunk() {
         bucket.push('x'.repeat(CHUNK_MB * MB));
       }
 
-      // (Re)start leaking with current interval
       function startLeak() {
         clearInterval(timerId);
         timerId = setInterval(allocateChunk, intervalMs);
       }
 
-      // ---- UI helpers ----
+      // --- UI helpers ---
       const statusEl = document.getElementById('status');
       const speedEl  = document.getElementById('speedDisplay');
 
       function updateSpeedLabel() {
-        speedEl.textContent = (1000 / intervalMs * CHUNK_MB).toFixed(1);
+        speedEl.textContent = (1000 / intervalMs * CHUNK_MB).toFixed(0);
       }
 
-      // Every second: show stats
+      // Update stats every second
       setInterval(() => {
         const leakMB = bucket.length * CHUNK_MB;
         const heap = (performance.memory?.usedJSHeapSize || 0) / MB;
-        const heapLabel = performance.memory ? `${heap.toFixed(0)} MB` : 'n/a';
-        statusEl.textContent = `Chunks: ${bucket.length}  (~${leakMB} MB) | JS Heap: ${heapLabel}`;
+        const heapLabel = performance.memory ? `${heap.toFixed(0)} MB` : 'n/a';
+        statusEl.textContent = `Chunks: ${bucket.length} (~${leakMB} MB) | JS Heap: ${heapLabel}`;
       }, 1000);
 
-      // ---- Controls ----
-      document.getElementById('slower').addEventListener('click', () => {
-        intervalMs = Math.min(intervalMs + 100, 5000);
+      // --- Controls ---
+      document.getElementById('faster').addEventListener('click', () => {
+        intervalMs = Math.max(Math.floor(intervalMs / 2), 1); // halve until 1 ms
         startLeak();
         updateSpeedLabel();
       });
 
-      document.getElementById('faster').addEventListener('click', () => {
-        intervalMs = Math.max(intervalMs - 100, 10);
+      document.getElementById('slower').addEventListener('click', () => {
+        intervalMs = Math.min(intervalMs * 2, 10000); // double up to 10 s
         startLeak();
         updateSpeedLabel();
       });
