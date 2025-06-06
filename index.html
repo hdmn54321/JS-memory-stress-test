@@ -7,34 +7,93 @@
     :root { font-family: system-ui, sans-serif; }
     body {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 1.25rem;
       height: 100vh;
       margin: 0;
       background: #fdfdfd;
     }
-    h1 { font-size: 1.25rem; font-weight: 500; }
+    h1 { font-size: 1.25rem; font-weight: 500; margin: 0; }
+    #status { font-size: 0.9rem; color: #333; }
+    button {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.9rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #f0f0f0; }
+    #controls { display: flex; gap: 0.5rem; align-items: center; }
+    #speedDisplay { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
-  <h1>Memory Leak Test — open DevTools › Performance › Memory to observe growth</h1>
+  <h1>Memory Leak Test — open DevTools → Performance → Memory to observe growth</h1>
+  <div id="status">Waiting&hellip;</div>
+  <div id="controls">
+    <button id="slower">&#8722; slower</button>
+    <span>Speed: <span id="speedDisplay"></span> MB/s</span>
+    <button id="faster">faster &#43;</button>
+  </div>
 
   <script>
     // =============================
-    // Deliberate Memory Leak Demo
+    // Deliberate Memory Leak Demo with Controls & Live Stats
     // =============================
-    // ⚠️ Opening this page will steadily increase browser memory usage.
-    // The closure below retains every allocated chunk forever.
     (function () {
-      const leakyBucket = []; // never released
+      const MB = 1024 * 1024;
+      const CHUNK_MB = 1;               // size per allocation
+      let intervalMs = 100;             // default interval (ms)
+      const bucket = [];                // never released → leak
+      let timerId;
 
+      // Allocate one chunk and hold reference
       function allocateChunk() {
-        // Allocate ~1 MiB string and keep a reference to it
-        leakyBucket.push('x'.repeat(1024 * 1024));
+        bucket.push('x'.repeat(CHUNK_MB * MB));
       }
 
-      // Allocate every 100 ms (≈10 MiB per second)
-      setInterval(allocateChunk, 100);
+      // (Re)start leaking with current interval
+      function startLeak() {
+        clearInterval(timerId);
+        timerId = setInterval(allocateChunk, intervalMs);
+      }
+
+      // ---- UI helpers ----
+      const statusEl = document.getElementById('status');
+      const speedEl  = document.getElementById('speedDisplay');
+
+      function updateSpeedLabel() {
+        speedEl.textContent = (1000 / intervalMs * CHUNK_MB).toFixed(1);
+      }
+
+      // Every second: show stats
+      setInterval(() => {
+        const leakMB = bucket.length * CHUNK_MB;
+        const heap = (performance.memory?.usedJSHeapSize || 0) / MB;
+        const heapLabel = performance.memory ? `${heap.toFixed(0)} MB` : 'n/a';
+        statusEl.textContent = `Chunks: ${bucket.length}  (~${leakMB} MB) | JS Heap: ${heapLabel}`;
+      }, 1000);
+
+      // ---- Controls ----
+      document.getElementById('slower').addEventListener('click', () => {
+        intervalMs = Math.min(intervalMs + 100, 5000);
+        startLeak();
+        updateSpeedLabel();
+      });
+
+      document.getElementById('faster').addEventListener('click', () => {
+        intervalMs = Math.max(intervalMs - 100, 10);
+        startLeak();
+        updateSpeedLabel();
+      });
+
+      // Init
+      updateSpeedLabel();
+      startLeak();
     })();
   </script>
 </body>
