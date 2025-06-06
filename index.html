@@ -1,21 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Memory Leak Demo(made at 2025/06/06 9:37)</title>
+  <meta charset="UTF-8" />
+  <title>Memory Leak Test</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #fdfdfd;
+    }
+    h1 { font-size: 1.25rem; font-weight: 500; }
+  </style>
 </head>
 <body>
-  <h1>Memory Leak Simulation</h1>
-  <p>This page will continuously allocate memory. Open Developer Tools > Performance > Memory to observe.</p>
-  <script>
-    const memoryLeaks = [];
+  <h1>Memory Leak Test — open DevTools › Performance › Memory to observe growth</h1>
 
-    // Create and store large arrays in memory to prevent garbage collection
-    setInterval(() => {
-      const leakyArray = new Array(1000000).fill(Math.random());
-      memoryLeaks.push(leakyArray); // Keeps a strong reference
-      console.log("Leaking memory... Total allocations: ", memoryLeaks.length);
-    }, 1000);
+  <script>
+    // =============================
+    // Deliberate Memory Leak Demo
+    // =============================
+    // ⚠️ Opening this page will steadily increase browser memory usage.
+    // The closure below retains every allocated chunk forever.
+    (function () {
+      const leakyBucket = []; // never released
+
+      function allocateChunk() {
+        // Allocate ~1 MiB string and keep a reference to it
+        leakyBucket.push('x'.repeat(1024 * 1024));
+      }
+
+      // Allocate every 100 ms (≈10 MiB per second)
+      setInterval(allocateChunk, 100);
+    })();
   </script>
 </body>
 </html>
