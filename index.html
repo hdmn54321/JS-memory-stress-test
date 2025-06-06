@@ -1,69 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Memory Leak Stress Test</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body { font-family: sans-serif; padding: 1rem; line-height: 1.5; }
-  input { width: 6rem; }
-  button { margin-left: .5rem; padding: .3rem .8rem; }
-  #status { margin-top: 1rem; font-weight: bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>Memory Leak Demo(made at 2025/06/06 9:37)</title>
 </head>
 <body>
-<h1>JavaScript Memory Stress Test</h1>
-<p>
-  This page intentionally allocates memory on a timer so you can observe how the browser behaves.<br>
-  Interval&nbsp;(ms): <input id="interval" type="number" value="50" min="1" step="10">
-  Chunk&nbsp;size&nbsp;(elements): <input id="chunk" type="number" value="1048576" step="1024"><br>
-  <button id="start">Start</button>
-  <button id="stop" disabled>Stop</button>
-</p>
-<p id="status">Buckets: 0</p>
+  <h1>Memory Leak Simulation</h1>
+  <p>This page will continuously allocate memory. Open Developer Tools > Performance > Memory to observe.</p>
+  <script>
+    const memoryLeaks = [];
 
-<script>
-(() => {
-  let buckets = [];
-  let timer = null;
-
-  const status = document.getElementById('status');
-  const btnStart = document.getElementById('start');
-  const btnStop = document.getElementById('stop');
-  const intervalInput = document.getElementById('interval');
-  const chunkInput = document.getElementById('chunk');
-
-  function updateStatus() {
-    const estMB = (buckets.length * chunkInput.value * 1) / 256; // rough estimate
-    status.textContent = `Buckets: ${buckets.length} (≈ ${estMB.toLocaleString(undefined,{maximumFractionDigits:0})} MB)`;
-  }
-
-  btnStart.addEventListener('click', () => {
-    const delay = parseInt(intervalInput.value, 10);
-    const chunk = parseInt(chunkInput.value, 10);
-
-    if (timer) clearInterval(timer);
-    timer = setInterval(() => {
-      buckets.push(new Array(chunk).fill('🧠'));
-      console.log('Buckets:', buckets.length);
-      updateStatus();
-    }, delay);
-
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-  });
-
-  btnStop.addEventListener('click', () => {
-    clearInterval(timer);
-    timer = null;
-    buckets = [];
-    updateStatus();
-    btnStart.disabled = false;
-    btnStop.disabled = true;
-  });
-
-  updateStatus();
-})();
-</script>
+    // Create and store large arrays in memory to prevent garbage collection
+    setInterval(() => {
+      const leakyArray = new Array(1000000).fill(Math.random());
+      memoryLeaks.push(leakyArray); // Keeps a strong reference
+      console.log("Leaking memory... Total allocations: ", memoryLeaks.length);
+    }, 1000);
+  </script>
 </body>
 </html>
